@@ -26,6 +26,7 @@ public class Client {
             // Send to echo server
             msg.put("num", num * 2);
             System.out.println(msg);
+            System.out.println("msg print in client" + msg);
 
             // Wait for response
             var line = reader.readLine();
