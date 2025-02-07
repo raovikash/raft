@@ -80,8 +80,9 @@ public class Server {
         if (msg.has("reqid"))
             reply.put("reqid", msg.get("reqid"));
         switch (msg.getString("type")) {
-            case CMD_REQ: reply.put("type", CMD_RESP);
-            case APPEND_REQ: reply.put("type", APPEND_RESP);
+            case CMD_REQ: reply.put("type", CMD_RESP);break;
+            case APPEND_REQ: reply.put("type", APPEND_RESP); break;
+            default: throw new RuntimeException("msg with unknown type" + msg);
         }
         for (int i = 0; i < extraKeyValues.length; i+=2) {
             reply.put((String)extraKeyValues[i], extraKeyValues[i+1]);
