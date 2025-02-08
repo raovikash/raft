@@ -208,6 +208,10 @@ class Distill():
         found = False
         for id in self.config.keys():
             if re.findall(pat, id):
+                found = True 
+                if id in self.nodes:
+                    self.write_err_trace(f"{id} already launched. Ignored exec")
+                    continue
                 executable = self.config[id]
                 found = True
                 n = self.nodes[id] = Node(id, self.handle_message, self.handle_error, self.handle_exit)
