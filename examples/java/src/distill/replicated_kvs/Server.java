@@ -35,37 +35,70 @@ public class Server {
     }
 
     public void apply(JSONObject msg) {
-        var key = msg.getString("key");
-        var cmd = msg.getString("cmd");
-        var value = msg.get("value");
-
-        throw new RuntimeException("UNIMPLEMENTED");
+        kv.put(msg.getString("key"), msg.get("value"));
+        var reply = mkReply(msg, "from", nodeId, "to", "client");
+        System.out.println(reply);
     }
 
     int quorumSize() {
-        throw new RuntimeException("UNIMPLEMENTED");
+        // System.err.println("siblings.size() = " + siblings.size());
+        return (siblings.size() / 2) + 1;
     }
     /**
      * Message
      * @param msg from leader to follower
      */
     void onAppendReq(JSONObject msg) {
-        throw new RuntimeException("UNIMPLEMENTED");
+        if (!isLeader) {
+            // System.err.println("msg in onAppendReq = " + msg);
+            var key = msg.getString("key");
+            var value = msg.get("value");
+            kv.put(key, value);
+            var reply = mkReply(msg,"type", APPEND_RESP, "key", key, "value", value);
+            // System.err.println("reply in onAppendReq = " + reply);
+            System.out.println(reply);
+        }
     }
 
     void onClientCommand(JSONObject msg) {
-        throw new RuntimeException("UNIMPLEMENTED");
-
+        if (isLeader) {
+            var key = msg.getString("key");
+            var cmd = msg.getString("cmd");
+            if (cmd.equalsIgnoreCase("R")) {
+                var reply = mkReply(msg, "value", kv.get(key));
+                // System.err.print("value for key " + key + " is " + kv.get(key));
+                System.out.println(reply);
+            } else if (cmd.equalsIgnoreCase("W")) {
+                replicate(msg);
+            }
+        }
     }
 
     void replicate(JSONObject msg) {
-        throw new RuntimeException("UNIMPLEMENTED");
-
+        var reqid = msg.has("reqid") ? msg.getString("reqid") : UUID.randomUUID().toString();
+        for (String sibling: siblings) {
+            var appendReq = mkMsg("from", nodeId, "to", sibling, "type", APPEND_REQ, "reqid", reqid,
+                "key", msg.getString("key"), "value", msg.get("value"));
+            System.out.println(appendReq);
+        }
     }
 
 
     void onAppendResp(JSONObject msg) {
-        throw new RuntimeException("UNIMPLEMENTED");
+        if (isLeader) {
+            // System.err.println("msg in onAppendResp = " + msg);
+            var reqid = msg.getString("reqid");
+            var acks = pendingAcks.getOrDefault(reqid, 0);
+            acks++;
+            // System.err.println("qualsize = " + quorumSize() + " acks = " + acks);
+            if (acks >= quorumSize()) {
+                pendingAcks.remove(reqid);
+                // System.err.println("msg = " + msg);
+                apply(msg);
+            } else {
+                pendingAcks.put(reqid, acks);
+            }
+        }
     }
 
 
@@ -95,11 +128,19 @@ public class Server {
             JSONObject msg = recv();
             String msgType = msg.getString("type");
             switch (msgType) {
+                // sends append request to followers
+                // append request is only handled by follower
                 case APPEND_REQ: onAppendReq(msg); break; // APPEND_RESP
+                // handles append response from followers
+                // append response is only handled by leader
                 case APPEND_RESP: {
                     onAppendResp(msg);
                     break;
                 }
+                // handles client command
+                // client command is only handled by leader
+                // on read, leader reads from map and returns
+                // on write, leads sends append request to followers
                 case CMD_REQ: {
                     onClientCommand(msg);
                     break;
