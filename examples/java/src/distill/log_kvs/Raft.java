@@ -156,6 +156,11 @@ public class Raft {
     }
     
     boolean updateNumCommitted() {
+        // This method is called every time an append response comes, and
+        // we check to see how much of the log has been committed at all.
+        // if the number committed has changed, it returns true.
+
+        // This is how to
         // Suppose the leader and followers' log lengths are as follows :
         // [10, 5, 4, 8, 10].
         //
@@ -174,22 +179,9 @@ public class Raft {
         // fi.matched.
 
         assert isLeader();
-        List<Integer> lengths = new ArrayList<>();
-        lengths.add(log.length());
-        for (FollowerInfo fi : followers.values()) {
-            lengths.add(fi.logLength);
-        }
-        if (lengths.size() < quorumSize) {
-            return false;
-        }
-
-        lengths.sort(Collections.reverseOrder());
-        // Get the last entry of the majority slice.
-        int newNumCommitted = lengths.get(quorumSize - 1);
-        assert newNumCommitted >= numCommitted;
-
-        boolean retval = newNumCommitted > numCommitted;
-        numCommitted = newNumCommitted;
+        //TODO: IMPLEMENT ABOVE.
+        //return true if numCommitted was changed.
+        throw new RuntimeException("UNIMPLEMENTED");
         return retval;
     }
 
