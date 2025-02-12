@@ -374,7 +374,7 @@ public class Raft {
     Actions processMsg(JSONObject msg) {
         var msgType = msg.getString("type");
         var actions = new Actions();
-        if (!(msgType.equals(CMD_REQ))) {
+        if (!(msgType.equals(CMD_REQ) || msgType.equals(TIMEOUT))) {
             var action = checkTerm(msg);
             if (action == IGNORE_MSG) {
                 return NO_ACTIONS;
@@ -385,6 +385,7 @@ public class Raft {
             case APPEND_REQ -> actions.add(onAppendReq(msg));
             case APPEND_RESP -> actions.add(onAppendResp(msg));
             case CMD_REQ -> actions.add(onClientCommand(msg));
+            case TIMEOUT -> actions.add(onTimeout(msg));    
             default -> throw new RuntimeException("Unknown msg type " + msgType);
         }
         if (isLeader()) {
