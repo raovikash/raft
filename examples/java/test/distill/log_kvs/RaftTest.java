@@ -79,7 +79,7 @@ public class RaftTest {
     void testReplication() {
         var l = createLeader(3);
 
-        int[] terms = {1,2,2};
+        int[] terms = {1,2,2,3};
         l.log = mkSampleLog(terms);
         // Keep the term higher than the last term in the log and verify that although
         // the logs have been equalized, l.numCommitted and l.numApplied are still 0
