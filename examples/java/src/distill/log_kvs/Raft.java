@@ -117,6 +117,7 @@ public class Raft {
         int msgIndex = (int) msg.get("index");
         var msgEntries = (JSONArray) msg.get("entries");
         Action toSend = null;
+        // System.err.println("current log length=" + log.length() + " msgIndex=" + msgIndex);
         if (msgIndex > log.length()) {
             // Ask leader to back up
             // TODO: Return Send action  "success": "false" and "index" set to current log length
@@ -154,9 +155,9 @@ public class Raft {
         int msgIndex = msg.getInt("index");
         var isSuccess = msg.getString("success");
         assert "true".equals(isSuccess);
-        // System.err.println("msgIndex: " + msgIndex + " log.length(): " + log.length());
+        // // System.err.println("msgIndex: " + msgIndex + " log.length(): " + log.length());
         assert msgIndex <= log.length() : msgIndex;
-        System.err.println("passed assert, msgIndex=" + msgIndex + " log.length=" + log.length());
+        // System.err.println("passed assert, msgIndex=" + msgIndex + " log.length=" + log.length());
         var fi = followers.get(msg.getString("from"));
         fi.logLength = msgIndex;
         fi.requestPending = false;
@@ -197,9 +198,13 @@ public class Raft {
                 .map(fi -> fi.logLength)
                 .sorted(Comparator.reverseOrder())
                 .collect(Collectors.toList());
+        // System.err.println("sorted arr " + sorted);
         var newNumCommitted = sorted.get(quorumSize - 1);
+        // System.err.println("numCommited= " + numCommitted + " newNumCommitted " + newNumCommitted);
         // throw new RuntimeException("UNIMPLEMENTED");
-        return numCommitted != newNumCommitted;
+        boolean isCommitChanged = numCommitted != newNumCommitted;
+        numCommitted = newNumCommitted;
+        return isCommitChanged;
     }
 
 
@@ -228,10 +233,13 @@ public class Raft {
     }
     Actions onCommit() {
         var actions = new Actions();
+        // System.err.println("applying commit");
         // TODO: For each index starting from numApplied to numCommitted
         // TODO:      call apply with that log entry
+        // System.err.println("numApplied=" + numApplied + " numCommitted=" + numCommitted);
         for(int i = numApplied; i < numCommitted; i++) {
             var entry = log.getJSONObject(i);
+            // System.err.println("i=" + i + " entry=" + entry);
             actions.add(apply(i, entry));
         }
         numApplied = numCommitted;
@@ -257,9 +265,10 @@ public class Raft {
         // TODO: attributes "index", "num_committed", "term"
         // TODO: and "entries". This last attribute should be a slice o the
         // TODO log from index to end of log.
+        // System.err.println("Send append requests to " + to + ", the request should have all entries starting from index=" + index);
         var msg = mkMsg(
                 "from", myId,
-                "to", to,
+                "to", to,   
                 "type", APPEND_REQ,
                 "index", index,
                 "num_committed", numCommitted,
@@ -291,7 +300,7 @@ public class Raft {
     Action checkTerm(JSONObject msg) {
         var actions = NO_ACTIONS;
         var msgTerm = msg.getInt("term");
-        // System.err.println("msg in checkTerm = " + msg);
+        // // System.err.println("msg in checkTerm = " + msg);
         //TODO: if the incoming message's term is > my term
         //TODO:     upgrade my term
         //TODO:     if I am a leader, becomeFollower()
