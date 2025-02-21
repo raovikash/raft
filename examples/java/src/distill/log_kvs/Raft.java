@@ -37,7 +37,6 @@ class FollowerInfo {
         this.follower_id = id;
         this.logLength = logLength;
         this.requestPending = requestPending;
-
     }
 }
 
@@ -260,7 +259,7 @@ public class Raft {
 
     Action mkAppendMsg(String to, int index) {
         assert isLeader();
-
+        System.err.println("received to=" + to + " index=" + index);
         // TODO: Create an APPEND_REQ message with
         // TODO: attributes "index", "num_committed", "term"
         // TODO: and "entries". This last attribute should be a slice o the
@@ -275,6 +274,7 @@ public class Raft {
                 "term", term,
                 "entries", new JSONArray(log.toList().subList(index, log.length()))
         );
+        System.err.println("msg in mkAppendMsg = " + msg);
         return new Send(msg);
     }
 
@@ -289,11 +289,14 @@ public class Raft {
         // TODO:      create a send action with an appendReq message (use mkAppendMsg)
         // TODO:      set fi.requestPending
         for(FollowerInfo fi : followers.values()) {
+            System.err.println("log length=" + log.length() + " fi.logLength=" + fi.logLength + " fi.requestPending=" + fi.requestPending);
             if (fi.logLength < log.length() && !fi.requestPending) {
+                System.err.println("sending append to " + fi.follower_id + " with log length " + fi.logLength);
                 actions.add(mkAppendMsg(fi.follower_id, fi.logLength));
                 fi.requestPending = true;
             }
         }
+        System.err.println("actions in sendAppends = " + actions);
         return actions;
     }
 
@@ -369,9 +372,18 @@ public class Raft {
             default -> throw new RuntimeException("Unknown msg type " + msgType);
         }
         if (isLeader()) {
-            actions.add(sendAppends());
+            log(msgType, String.format("sending appends from leader, msgType=%s, size of actions=%s, actions so far=%s", msgType, actions.size(), actions));
+            Actions appendActions = sendAppends();
+            log(msgType, String.format("received append actions for msgType=%s, append actions size=%s, append actions=%s", msgType, appendActions.size(), appendActions));
+            actions.add(appendActions);
+            log(msgType, String.format("actions for msgType=%s, size=%s, are=%s", msgType, actions.size(), actions));
         }
         return actions;
     }
 
+    void log(String msgType, String log) {
+        if (msgType.equals(APPEND_RESP)) {
+            System.err.println(String.format("log for msgType=%s, is=%s", msgType, log));
+        }
+    }
 }
