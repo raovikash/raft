@@ -163,14 +163,21 @@ public class Raft {
             // TODO: Return Send action  "success": "false" and "index" set to current log length
             throw new RuntimeException("UNIMPLEMENTED");
         } else {
-            if (msgIndex == log.length()) {
-                // TODO: Append msgEntries to log
-                // TODO: Return Send action  "success": "true" and "index" set to current log length
+            int myPrevLogTerm = logTermBeforeIndex(msgIndex);
+            // If the prev entry's term did not match, tell the leader to back up one item
+            if (prevLogTerm != myPrevLogTerm) {
+                // TODO: Return Send action "success" "false", and "index" to log length - 1
                 throw new RuntimeException("UNIMPLEMENTED");
+            } else {
+                if (msgIndex == log.length()) {
+                    // TODO: Append msgEntries to log
+                    // TODO: Return Send action  "success": "true" and "index" set to current log length
+                    throw new RuntimeException("UNIMPLEMENTED");
 
-            } else { // msgIndex < log.length()
-                // TODO: chop tail until msgIndex, then add msgEntries
-                throw new RuntimeException("UNIMPLEMENTED");
+                } else { // msgIndex < log.length()
+                    // TODO: chop tail until msgIndex, then add msgEntries
+                    throw new RuntimeException("UNIMPLEMENTED");
+                }
             }
         }
         var actions = new Actions(toSend);
@@ -385,7 +392,7 @@ public class Raft {
             case APPEND_REQ -> actions.add(onAppendReq(msg));
             case APPEND_RESP -> actions.add(onAppendResp(msg));
             case CMD_REQ -> actions.add(onClientCommand(msg));
-            case TIMEOUT -> actions.add(onTimeout(msg));    
+            case TIMEOUT -> actions.add(onTimeout(msg));
             default -> throw new RuntimeException("Unknown msg type " + msgType);
         }
         if (isLeader()) {
