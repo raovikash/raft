@@ -4,21 +4,13 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.*;
-import static org.junit.jupiter.api.Assertions.*;
-
-import static distill.log_kvs_timeouts.Raft.mkMsg;
-import static distill.log_kvs_timeouts.Action.ELECTION;
-import static distill.log_kvs_timeouts.Actions.Send;
-import static distill.log_kvs_timeouts.Actions.SetAlarm;
+import static distill.log_kvs_timeouts.Actions.*;
 import static distill.log_kvs_timeouts.Events.*;
-
 import static distill.log_kvs_timeouts.Raft.mkMsg;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RaftTest {
 
@@ -32,7 +24,7 @@ public class RaftTest {
         for (int i = 1; i <= clusterSize; i++) {
             members.add("S" + i);
         }
-        var leader = new Raft(members.get(0), members, null, true);
+        var leader = new Raft(members.get(0), members, true);
         Actions actions = leader.start();
         var alarms = extractSetAlarm(actions);
         // Expect a heartbeat alarm to be set per follower
@@ -49,21 +41,67 @@ public class RaftTest {
         var msg = mkMsg("from", "S3",
                 "to", "S1",
                 "type", APPEND_REQ,
+                "index", 3,
                 "term", 5,
                 "log_length", 3,
-                "last_log_term", 5);
+                "prev_log_term", 5,
+                "num_committed", 0,
+                "entries", new JSONArray()
+        );
         l.processMsg(msg);
         assertSame(l.status, Status.FOLLOWER);
         assertEquals(l.term, 5);
     }
 
+    @Test
+    void testIgnoreLowerTerm() {
+        var l = createLeader(3);
+
+        var msg = mkMsg("from", "S3",
+                "to", "S1",
+                "type", APPEND_REQ,
+                "index", 3,
+                "term", 1,
+                "log_length", 3,
+                "prev_log_term", 1,
+                "num_committed", 0,
+                "entries", new JSONArray()
+        );
+        // Check leader remains leader and term is unchanged.
+        int oldTerm = l.term;
+        assertSame(l.status, Status.LEADER);
+        assertEquals(l.term, oldTerm);
+        // Ensure no actions are produced. The message should be dropped
+        Actions actions = l.processMsg(msg);
+        assertEquals(actions.size(), 0);
+    }
+
+
+    @Test
+    void testBecomeFollower() {
+        var l = createLeader(5);
+        Actions actions = l.becomeFollower();
+        // at the very least  there should be 4 heartbeat cancellations and
+        // one SetAlarm("ELECTION"). Optional: CancelAlarm("ELECTION")
+        // If we collect them as a set, there should be exactly 5 alarm actions.
+        Set<String> names = new HashSet<>();
+        actions.todos.forEach(act -> {
+            if (act instanceof SetAlarm sa) {
+                names.add(sa.name());
+            } else if (act instanceof CancelAlarm ca) {
+                names.add(ca.name());
+            }
+        });
+        assertEquals(names.size(),  5, actions.toString());
+
+    }
     /**
      * Expect to see a single send of an empty AppendReq message.
      */
     @Test
     void testHeartbeatExpired() {
-        var l = createLeader();
         var msg = mkMsg("type", TIMEOUT, "name", "S2");
+        var l = createLeader();
         var actions = l.processMsg(msg);
         var sends = extractSends(actions);
         assertEquals(sends.size(), 1);
@@ -116,6 +154,7 @@ public class RaftTest {
         l.term = 3;
 
         var f = createFollower(3); // f.log has the default log [1,1,1]
+        f.log = new JSONArray();
         f.myId = "S2";
 
         replicate(l,f);
@@ -150,7 +189,8 @@ public class RaftTest {
             members.add("S" + i);
         }
         Raft raft = new Raft(members.get(0), members, true);
-        int[] terms = {1, 1, 1};
+        int[] terms = {1, 1, 2};
+        raft.term = 2;
         raft.log = mkSampleLog(terms);
         raft.pendingResponses = mkPendingResponses(terms.length);
         raft.start();
@@ -193,7 +233,7 @@ public class RaftTest {
             var entry = mkMsg(
                     "term", term,
                     "cl_reqid", cl_reqid,
-                    "cmd", "I", "key", "a", "by", 10
+                    "cmd", "W", "key", "a", "value", (i+1) * 10
             );
             log.put(entry);
         }

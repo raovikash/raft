@@ -5,6 +5,8 @@ import org.json.JSONObject;
 
 import java.util.*;
 
+import javax.swing.Action;
+
 import static distill.log_kvs_timeouts.Actions.*;
 import static distill.log_kvs_timeouts.Events.*;
 
@@ -79,11 +81,10 @@ public class Raft {
 
     Map<String, JSONObject> pendingResponses = null;
 
-    public Raft(String myId, List<String> siblings, boolean isLeader) {
+    public Raft(String myId, List<String> members, boolean isLeader) {
         this.myId = myId;
-        this.siblings = siblings;
-        int clusterSize = siblings.size() + 1;
-        quorumSize = clusterSize / 2 + 1;
+        this.siblings = members.stream().filter(id -> ! id.equals(myId)).toList();
+        quorumSize = members.size() / 2 + 1;
         term = isLeader ? 1 : 0;
         status = isLeader ? Status.LEADER : Status.FOLLOWER;
     }
@@ -149,7 +150,7 @@ public class Raft {
     int logTermBeforeIndex(int index) {
         // TODO: return the term at log entry index-1
         // TODO: if there is no entry at that index return 0.
-        throw new RuntimeException("UNIMPLEMENTED")
+        throw new RuntimeException("UNIMPLEMENTED");
     }
 
     Actions onAppendReq(JSONObject msg) {
@@ -185,6 +186,8 @@ public class Raft {
         if (!isLeader()) {
             numCommitted = (int) msg.get("num_committed");
             actions.add(onCommit());
+            // TODO: reset ELECTION timer
+            throw new RuntimeException("UNIMPLEMENTED");
         }
         return actions;
     }
@@ -196,6 +199,8 @@ public class Raft {
         var fi = followers.get(msg.getString("from"));
         fi.logLength = msgIndex;
         fi.requestPending = false;
+        // TODO: Set fi.isLogLengthKnown depending on success
+        throw new RuntimeException();
         var actions = new Actions(new SetAlarm(fi.follower_id)); // heartbeat timer reset
         if (updateNumCommitted()) {
             actions.add(onCommit());
