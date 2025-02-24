@@ -95,28 +95,36 @@ public class Raft {
 
     Actions becomeLeader() {
         // TODO: cancelAllTimers(). Note this returns actions
-        cancelAllTimers();
+        Actions cancelActions = cancelAllTimers();
         this.status = Status.LEADER;
         this.followers = new HashMap<>();
+        Actions setAlarmActions = new Actions();
         for (String fol : siblings) {
             FollowerInfo fi = new FollowerInfo(fol, log.length(),
                     false, true, false);
             followers.put(fol, fi);
             // TODO: add to actions:  SetAlarm(fol)
+            setAlarmActions.add(new SetAlarm(fol)); 
         }
         this.pendingResponses = new HashMap<>();
-        return NO_ACTIONS; // There will be actions in a later exercise.
+        Actions allActions = new Actions();
+        allActions.add(cancelActions);
+        allActions.add(setAlarmActions);
+        return allActions;
     }
 
     Actions becomeFollower() {
         // TODO: call cancelAllTimers. Note that it returns actions.
         // TODO: SetAlarm for Action.ELECTION. Add to actions
         // TODO: return these actions.
-        cancelAllTimers();
-
+        Actions cancelAllTimersActions = cancelAllTimers();
+        Action setAlarmAction = new Action.SetAlarm("ELECTION");
         status = Status.FOLLOWER;
         followers = null;
-        return NO_ACTIONS; // There will be actions in a later exercise.
+        Actions allActions = new Actions();
+        allActions.add(cancelAllTimersActions);
+        allActions.add(setAlarmAction);
+        return allActions; // There will be actions in a later exercise.
     }
 
     Actions cancelAllTimers() {
@@ -175,26 +183,20 @@ public class Raft {
         Action toSend = null;
         if (msgIndex > log.length()) {
             // Ask leader to back up
-
             // TODO: Return Send action  "success": "false" and "index" set to current log length
-            toSend = mkReply(msg, "from", myId, "to", msg.get("from"), "type", APPEND_RESP,
-                    "success", "false", "index", log.length(), "num_committed", numCommitted, "entries", msgEntries);
-            // throw new RuntimeException("UNIMPLEMENTED");
+            toSend = mkReply(msg,"success", "false", "index", log.length());
         } else {
             if (msgIndex == log.length()) {
                 // TODO: Append msgEntries to log
                 // TODO: Return Send action  "success": "true" and "index" set to current log length
                 log.putAll(msgEntries);
-                toSend = mkReply(msg, "from", myId, "to", msg.get("from"), "type", APPEND_RESP,
-                    "success", "true", "index", log.length(), "num_committed", numCommitted, "entries", msgEntries);                
+                toSend = mkReply(msg,"success", "true", "index", log.length());                
                     // throw new RuntimeException("UNIMPLEMENTED");
             } else { // msgIndex < log.length()
                 // TODO: chop tail until msgIndex, then add msgEntries
                 log = new JSONArray(log.toList().subList(0, msgIndex));
                 log.putAll(msgEntries);
-                toSend = mkReply(msg, "from", myId, "to", msg.get("from"), "type", APPEND_RESP,
-                    "success", "true", "index", log.length(), "num_committed", numCommitted, "entries", msgEntries);
-                // throw new RuntimeException("UNIMPLEMENTED");
+                toSend = mkReply(msg, "success", "true", "index", log.length());
             }
         }
         var actions = new Actions(toSend);
@@ -254,12 +256,14 @@ public class Raft {
                 .sorted(Comparator.reverseOrder())
                 .collect(Collectors.toList());
 
+        if (sorted.size() < quorumSize) {
+            return false;
+        }
         var newNumCommitted = sorted.get(quorumSize - 1);
         boolean isCommitChanged = numCommitted != newNumCommitted;
         numCommitted = newNumCommitted;
         System.err.println(String.format("isCommitChanged=%s, numCommitted=%s, newNumCommitted=%s", 
             isCommitChanged, numCommitted, newNumCommitted));
-        // throw new RuntimeException("UNIMPLEMENTED");
         return isCommitChanged;
     }
 
@@ -350,15 +354,15 @@ public class Raft {
         for(FollowerInfo fi : followers.values()) {
             System.err.println(String.format("fi.heartbeatTimerExpired:%s, fi.requestPending:%s, fi.isLogLengthKnown:%s",
              fi.heartbeatTimerExpired, fi.requestPending, fi.isLogLengthKnown));
-            if (fi.heartbeatTimerExpired || (!fi.requestPending && !fi.isLogLengthKnown)) {
+            if (fi.heartbeatTimerExpired || (!fi.requestPending && fi.logLength < log.length())) {
                 System.err.println("Sending append to " + fi.follower_id + " with empty entries");
-                actions.add(mkAppendMsg(fi.follower_id, log.length(), true));
+                actions.add(mkAppendMsg(fi.follower_id, log.length(), !fi.isLogLengthKnown));
                 fi.heartbeatTimerExpired = false;
                 actions.add(new SetAlarm(fi.follower_id));
                 fi.requestPending = true;
             } else {
                 System.err.println("Sending append to " + fi.follower_id + " with entries");
-                actions.add(mkAppendMsg(fi.follower_id, fi.logLength, false));
+                actions.add(mkAppendMsg(fi.follower_id, fi.logLength, !fi.isLogLengthKnown));
                 actions.add(new SetAlarm(fi.follower_id));
                 fi.requestPending = true;
             }
