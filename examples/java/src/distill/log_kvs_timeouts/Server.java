@@ -44,7 +44,7 @@ public class Server {
                     timers.remove(name);
                 }
                 if (name.equals("ELECTION")) {
-                    throw new RuntimeException("Elections not implemented yet");
+                    // throw new RuntimeException("Elections not implemented yet");
                 } else if (raft.followers.containsKey(name)) {
                     Timer timer = Utils.setTimeout(0.1, name);
                     timers.put(name, timer);
