@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="distill.log_kvs.RaftTest" time="0.009" tests="2" errors="0" skipped="0" failures="0">
+  <properties>
+    <property name="java.specification.version" value="19"/>
+    <property name="sun.jnu.encoding" value="UTF-8"/>
+    <property name="java.class.path" value="/Users/vikash.yadav/Documents/training/distill/examples/java/target/test-classes:/Users/vikash.yadav/Documents/training/distill/examples/java/target/classes:/Users/vikash.yadav/.m2/repository/org/json/json/20231013/json-20231013.jar:/Users/vikash.yadav/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.7.0/junit-jupiter-api-5.7.0.jar:/Users/vikash.yadav/.m2/repository/org/apiguardian/apiguardian-api/1.1.0/apiguardian-api-1.1.0.jar:/Users/vikash.yadav/.m2/repository/org/opentest4j/opentest4j/1.2.0/opentest4j-1.2.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/platform/junit-platform-commons/1.7.0/junit-platform-commons-1.7.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/jupiter/junit-jupiter-engine/5.7.0/junit-jupiter-engine-5.7.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/platform/junit-platform-engine/1.7.0/junit-platform-engine-1.7.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/jupiter/junit-jupiter/5.12.0/junit-jupiter-5.12.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.12.0/junit-jupiter-params-5.12.0.jar:"/>
+    <property name="java.vm.vendor" value="Oracle Corporation"/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="java.vendor.url" value="https://java.oracle.com/"/>
+    <property name="os.name" value="Mac OS X"/>
+    <property name="java.vm.specification.version" value="19"/>
+    <property name="sun.java.launcher" value="SUN_STANDARD"/>
+    <property name="user.country" value="IN"/>
+    <property name="sun.boot.library.path" value="/Users/vikash.yadav/Library/Java/JavaVirtualMachines/openjdk-19.0.2/Contents/Home/lib"/>
+    <property name="sun.java.command" value="/Users/vikash.yadav/Documents/training/distill/examples/java/target/surefire/surefirebooter-20250303104345187_3.jar /Users/vikash.yadav/Documents/training/distill/examples/java/target/surefire 2025-03-03T10-43-45_134-jvmRun1 surefire-20250303104345187_1tmp surefire_0-20250303104345187_2tmp"/>
+    <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
+    <property name="jdk.debug" value="release"/>
+    <property name="surefire.test.class.path" value="/Users/vikash.yadav/Documents/training/distill/examples/java/target/test-classes:/Users/vikash.yadav/Documents/training/distill/examples/java/target/classes:/Users/vikash.yadav/.m2/repository/org/json/json/20231013/json-20231013.jar:/Users/vikash.yadav/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.7.0/junit-jupiter-api-5.7.0.jar:/Users/vikash.yadav/.m2/repository/org/apiguardian/apiguardian-api/1.1.0/apiguardian-api-1.1.0.jar:/Users/vikash.yadav/.m2/repository/org/opentest4j/opentest4j/1.2.0/opentest4j-1.2.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/platform/junit-platform-commons/1.7.0/junit-platform-commons-1.7.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/jupiter/junit-jupiter-engine/5.7.0/junit-jupiter-engine-5.7.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/platform/junit-platform-engine/1.7.0/junit-platform-engine-1.7.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/jupiter/junit-jupiter/5.12.0/junit-jupiter-5.12.0.jar:/Users/vikash.yadav/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.12.0/junit-jupiter-params-5.12.0.jar:"/>
+    <property name="sun.cpu.endian" value="little"/>
+    <property name="user.home" value="/Users/vikash.yadav"/>
+    <property name="user.language" value="en"/>
+    <property name="java.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.version.date" value="2023-01-17"/>
+    <property name="java.home" value="/Users/vikash.yadav/Library/Java/JavaVirtualMachines/openjdk-19.0.2/Contents/Home"/>
+    <property name="file.separator" value="/"/>
+    <property name="basedir" value="/Users/vikash.yadav/Documents/training/distill/examples/java"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="line.separator" value="&#10;"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="apple.awt.application.name" value="ForkedBooter"/>
+    <property name="surefire.real.class.path" value="/Users/vikash.yadav/Documents/training/distill/examples/java/target/surefire/surefirebooter-20250303104345187_3.jar"/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
+    <property name="java.runtime.version" value="19.0.2+7-44"/>
+    <property name="user.name" value="vikash.yadav"/>
+    <property name="stdout.encoding" value="UTF-8"/>
+    <property name="path.separator" value=":"/>
+    <property name="os.version" value="14.5"/>
+    <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
+    <property name="file.encoding" value="UTF-8"/>
+    <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
+    <property name="localRepository" value="/Users/vikash.yadav/.m2/repository"/>
+    <property name="java.vendor.url.bug" value="https://bugreport.java.com/bugreport/"/>
+    <property name="java.io.tmpdir" value="/var/folders/ct/ddld0_kj0j1_pw204s71y1jh0000gq/T/"/>
+    <property name="java.version" value="19.0.2"/>
+    <property name="user.dir" value="/Users/vikash.yadav/Documents/training/distill/examples/java"/>
+    <property name="os.arch" value="aarch64"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="native.encoding" value="UTF-8"/>
+    <property name="java.library.path" value="/Users/vikash.yadav/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:."/>
+    <property name="java.vm.info" value="mixed mode, sharing"/>
+    <property name="stderr.encoding" value="UTF-8"/>
+    <property name="java.vendor" value="Oracle Corporation"/>
+    <property name="java.vm.version" value="19.0.2+7-44"/>
+    <property name="sun.io.unicode.encoding" value="UnicodeBig"/>
+    <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
+    <property name="java.class.version" value="63.0"/>
+  </properties>
+  <testcase name="testReplication" classname="distill.log_kvs.RaftTest" time="0.008">
+    <system-err><![CDATA[log length=4 fi.logLength=3 fi.requestPending=true
+log length=4 fi.logLength=3 fi.requestPending=false
+sending append to S1 with log length 3
+received to=S1 index=3
+msg in mkAppendMsg = {"entries":[{"term":3,"cmd":"I","cl_reqid":"3","key":"a","by":10}],"index":3,"from":"S1","term":3,"to":"S1","type":"APPEND_REQ","num_committed":0}
+log length=4 fi.logLength=0 fi.requestPending=false
+sending append to S2 with log length 0
+received to=S2 index=0
+msg in mkAppendMsg = {"entries":[{"term":1,"cmd":"I","cl_reqid":"0","key":"a","by":10},{"term":2,"cmd":"I","cl_reqid":"1","key":"a","by":10},{"term":2,"cmd":"I","cl_reqid":"2","key":"a","by":10},{"term":3,"cmd":"I","cl_reqid":"3","key":"a","by":10}],"index":0,"from":"S1","term":3,"to":"S2","type":"APPEND_REQ","num_committed":0}
+actions in sendAppends = [Send[msg={"entries":[{"term":3,"cmd":"I","cl_reqid":"3","key":"a","by":10}],"index":3,"from":"S1","term":3,"to":"S1","type":"APPEND_REQ","num_committed":0}], Send[msg={"entries":[{"term":1,"cmd":"I","cl_reqid":"0","key":"a","by":10},{"term":2,"cmd":"I","cl_reqid":"1","key":"a","by":10},{"term":2,"cmd":"I","cl_reqid":"2","key":"a","by":10},{"term":3,"cmd":"I","cl_reqid":"3","key":"a","by":10}],"index":0,"from":"S1","term":3,"to":"S2","type":"APPEND_REQ","num_committed":0}]]
+log for msgType=APPEND_RESP, is=sending appends from leader, msgType=APPEND_RESP, size of actions=1, actions so far=[SetAlarm[name=S2]]
+log length=4 fi.logLength=3 fi.requestPending=true
+log length=4 fi.logLength=3 fi.requestPending=true
+log length=4 fi.logLength=4 fi.requestPending=false
+actions in sendAppends = []
+log for msgType=APPEND_RESP, is=received append actions for msgType=APPEND_RESP, append actions size=0, append actions=[]
+log for msgType=APPEND_RESP, is=actions for msgType=APPEND_RESP, size=1, are=[SetAlarm[name=S2]]
+]]></system-err>
+  </testcase>
+  <testcase name="testDowngrade" classname="distill.log_kvs.RaftTest" time="0.001"/>
+</testsuite>

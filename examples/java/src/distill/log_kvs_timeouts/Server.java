@@ -1,5 +1,9 @@
 package distill.log_kvs_timeouts;
+import java.sql.Time;
 import java.util.*;
+
+import distill.Utils;
+
 import static distill.Utils.*;
 import static distill.log_kvs_timeouts.Actions.*;
 
@@ -34,11 +38,28 @@ public class Server {
                 //TODO:    throw an exception because we haven't implemented elections yet.
                 //TODO: else if a follower name
                 //TODO:    call Utils.setTimeout and update timers object.
-                throw new RuntimeException("UNIMPLEMENTED");
+                if (timers.containsKey(name)) {
+                    Timer timer = timers.get(name);
+                    timer.cancel();
+                    timers.remove(name);
+                }
+                if (name.equals("ELECTION")) {
+                    // throw new RuntimeException("Elections not implemented yet");
+                } else if (raft.followers.containsKey(name)) {
+                    Timer timer = Utils.setTimeout(0.1, name);
+                    timers.put(name, timer);
+                }
+                
+                // throw new RuntimeException("UNIMPLEMENTED");
 
             } else if (action instanceof CancelAlarm cancelAlarm) {
                 String name = cancelAlarm.name();
                 //TODO: if there is a timer object corresponding to name and remove from map.
+                if (timers.containsKey(name)) {
+                    Timer timer = timers.get(name);
+                    timer.cancel();
+                    timers.remove(name);
+                }
             }
         }
     }

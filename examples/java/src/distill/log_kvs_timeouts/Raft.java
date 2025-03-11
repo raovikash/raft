@@ -3,9 +3,12 @@ package distill.log_kvs_timeouts;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.*;
+import distill.log_kvs_timeouts.Action.CancelAlarm;
+import distill.log_kvs_timeouts.Action.Send;
+import distill.log_kvs_timeouts.Action.SetAlarm;
 
-import javax.swing.Action;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static distill.log_kvs_timeouts.Actions.*;
 import static distill.log_kvs_timeouts.Events.*;
@@ -91,25 +94,36 @@ public class Raft {
 
     Actions becomeLeader() {
         // TODO: cancelAllTimers(). Note this returns actions
+        Actions cancelActions = cancelAllTimers();
         this.status = Status.LEADER;
         this.followers = new HashMap<>();
+        Actions setAlarmActions = new Actions();
         for (String fol : siblings) {
             FollowerInfo fi = new FollowerInfo(fol, log.length(),
-                    false, false);
+                    false, true, false);
             followers.put(fol, fi);
             // TODO: add to actions:  SetAlarm(fol)
+            setAlarmActions.add(new SetAlarm(fol)); 
         }
         this.pendingResponses = new HashMap<>();
-        return NO_ACTIONS; // There will be actions in a later exercise.
+        Actions allActions = new Actions();
+        allActions.add(cancelActions);
+        allActions.add(setAlarmActions);
+        return allActions;
     }
 
     Actions becomeFollower() {
         // TODO: call cancelAllTimers. Note that it returns actions.
         // TODO: SetAlarm for Action.ELECTION. Add to actions
         // TODO: return these actions.
+        Actions cancelAllTimersActions = cancelAllTimers();
+        Action setAlarmAction = new Action.SetAlarm("ELECTION");
         status = Status.FOLLOWER;
         followers = null;
-        return NO_ACTIONS; // There will be actions in a later exercise.
+        Actions allActions = new Actions();
+        allActions.add(cancelAllTimersActions);
+        allActions.add(setAlarmAction);
+        return allActions; // There will be actions in a later exercise.
     }
 
     Actions cancelAllTimers() {
@@ -117,6 +131,10 @@ public class Raft {
         // TODO: For each follower, create a CancelAlarmAction(follower.id)
         // TODO: create a CancelAlarm action for "ELECTION"
         // TODO: put all in actions.
+        for(FollowerInfo fi: followers.values()) {
+            actions.add(new CancelAlarm(fi.follower_id));
+        }
+        actions.add(actions.add(new CancelAlarm("ELECTION")));
         return actions;
     }
     
@@ -150,7 +168,11 @@ public class Raft {
     int logTermBeforeIndex(int index) {
         // TODO: return the term at log entry index-1
         // TODO: if there is no entry at that index return 0.
-        throw new RuntimeException("UNIMPLEMENTED");
+        if (log.length() == 0) {
+            return 1;
+        }
+        return log.getJSONObject(index - 1).getInt("term");
+        // throw new RuntimeException("UNIMPLEMENTED");
     }
 
     Actions onAppendReq(JSONObject msg) {
@@ -160,24 +182,28 @@ public class Raft {
         Action toSend = null;
         if (msgIndex > log.length()) {
             // Ask leader to back up
-
             // TODO: Return Send action  "success": "false" and "index" set to current log length
-            throw new RuntimeException("UNIMPLEMENTED");
+            toSend = mkReply(msg,"success", "false", "index", log.length());
         } else {
             int myPrevLogTerm = logTermBeforeIndex(msgIndex);
+            int prevLogTerm = (int) msg.get("term");
+            System.err.println("myPrevLogTerm=" + myPrevLogTerm + " prevLogTerm=" + prevLogTerm);
             // If the prev entry's term did not match, tell the leader to back up one item
             if (prevLogTerm != myPrevLogTerm) {
                 // TODO: Return Send action "success" "false", and "index" to log length - 1
-                throw new RuntimeException("UNIMPLEMENTED");
+                toSend = mkReply(msg,"success", "false", "index", log.length() - 1);
             } else {
                 if (msgIndex == log.length()) {
                     // TODO: Append msgEntries to log
                     // TODO: Return Send action  "success": "true" and "index" set to current log length
-                    throw new RuntimeException("UNIMPLEMENTED");
-
+                    log.putAll(msgEntries);
+                    toSend = mkReply(msg,"success", "true", "index", log.length());                
+                        // throw new RuntimeException("UNIMPLEMENTED");
                 } else { // msgIndex < log.length()
                     // TODO: chop tail until msgIndex, then add msgEntries
-                    throw new RuntimeException("UNIMPLEMENTED");
+                    log = new JSONArray(log.toList().subList(0, msgIndex));
+                    log.putAll(msgEntries);
+                    toSend = mkReply(msg, "success", "true", "index", log.length());
                 }
             }
         }
@@ -186,21 +212,23 @@ public class Raft {
         if (!isLeader()) {
             numCommitted = (int) msg.get("num_committed");
             actions.add(onCommit());
-            // TODO: reset ELECTION timer
-            throw new RuntimeException("UNIMPLEMENTED");
+            actions.add(new CancelAlarm("ELECTION"));
         }
         return actions;
     }
 
     Actions onAppendResp(JSONObject msg) {
         assert isLeader();
+        System.err.println("handling append response message: " + msg);
         int msgIndex = msg.getInt("index");
+        System.err.println(String.format("msgIndex=%s log.length=%s", msgIndex, log.length()));
         assert msgIndex <= log.length() : msgIndex;
+        System.err.println("passed assert for msgIndex=" + msgIndex);
         var fi = followers.get(msg.getString("from"));
         fi.logLength = msgIndex;
         fi.requestPending = false;
-        // TODO: Set fi.isLogLengthKnown depending on success
-        throw new RuntimeException();
+        fi.isLogLengthKnown = msg.getBoolean("success");
+        fi.heartbeatTimerExpired = false;
         var actions = new Actions(new SetAlarm(fi.follower_id)); // heartbeat timer reset
         if (updateNumCommitted()) {
             actions.add(onCommit());
@@ -233,8 +261,21 @@ public class Raft {
         //TODO: use logTermBeforeIndex
         //TODO: Ensure that fi.logLength is taken seriously only iffi.isLogLengthKnown
         //return true if numCommitted was changed.
-        throw new RuntimeException("UNIMPLEMENTED");
-        return retval;
+        var sorted = followers.values().stream()
+                .filter(fi -> fi.isLogLengthKnown)
+                .map(fi -> fi.logLength)
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList());
+
+        if (sorted.size() < quorumSize) {
+            return false;
+        }
+        var newNumCommitted = sorted.get(quorumSize - 1);
+        boolean isCommitChanged = numCommitted != newNumCommitted;
+        numCommitted = newNumCommitted;
+        System.err.println(String.format("isCommitChanged=%s, numCommitted=%s, newNumCommitted=%s", 
+            isCommitChanged, numCommitted, newNumCommitted));
+        return isCommitChanged;
     }
 
 
@@ -246,8 +287,10 @@ public class Raft {
         JSONObject clientMsg = null;
 
         if (isLeader()) {
+            System.err.println("entry in apply for leader=" + entry);
             String reqid = entry.getString("cl_reqid");
             clientMsg = pendingResponses.get(reqid);
+            System.err.println("clientMsg=" + clientMsg);
             pendingResponses.remove(reqid);
         }
 
@@ -259,14 +302,20 @@ public class Raft {
                         "index", index);
             }
         }
+        System.err.println("action from apply is=" + action);
         return action;
     }
     Actions onCommit() {
         var actions = new Actions();
         // TODO: For each index starting from numApplied to numCommitted
         // TODO:      call apply with that log entry
+        for(int i=numApplied; i<numCommitted; i++) {
+            var entry = log.getJSONObject(i);
+            System.err.println("committing entry=" + entry);
+            actions.add(apply(i, entry));
+        }
         numApplied = numCommitted;
-        throw new RuntimeException("UNIMPLEMENTED");
+        // throw new RuntimeException("UNIMPLEMENTED");
         return actions;
     }
 
@@ -290,7 +339,11 @@ public class Raft {
         // TODO: and "entries". This last attribute should be a slice o the
         // TODO log from index to end of log.
         // TODO: if emptyEntries is true entries should be empty (not null)
-        throw new RuntimeException("UNIMPLEMENTED");
+        // throw new RuntimeException("UNIMPLEMENTED");
+        System.err.println("emptyEntries = " + emptyEntries + " index = " + index + " log.length=" + log.length());
+        var msg = mkMsg("from", myId, "to", to, "type", APPEND_REQ,
+                "index", index, "num_committed", numCommitted, "term", term,
+                "entries", emptyEntries ? new JSONArray() : log.toList().subList(index, log.length()));
         return new Send(msg);
     }
 
@@ -310,7 +363,24 @@ public class Raft {
         // TODO:       reset fi.heartBeatTimerExpired to false
         // TODO:       set a heartbeat alarm for this follower
         // TODO:       fi.requestPending = true
-        throw new RuntimeException("UNIMPLEMENTED");
+        for(FollowerInfo fi : followers.values()) {
+            System.err.println(String.format("fi.heartbeatTimerExpired:%s, fi.requestPending:%s, fi.isLogLengthKnown:%s",
+             fi.heartbeatTimerExpired, fi.requestPending, fi.isLogLengthKnown));
+            if (fi.heartbeatTimerExpired || (!fi.requestPending && fi.logLength < log.length())) {
+                System.err.println("c_1 Sending append to " + fi.follower_id + " fi.isLogLengthKnown " + fi.isLogLengthKnown);
+                actions.add(mkAppendMsg(fi.follower_id, fi.logLength, !fi.isLogLengthKnown));
+                fi.heartbeatTimerExpired = false;
+                actions.add(new SetAlarm(fi.follower_id));
+                fi.requestPending = true;
+            } else {
+                System.err.println("c_2 Sending append to " + fi.follower_id + " fi.isLogLengthKnown " + fi.isLogLengthKnown);
+                actions.add(mkAppendMsg(fi.follower_id, fi.logLength, !fi.isLogLengthKnown));
+                actions.add(new SetAlarm(fi.follower_id));
+                fi.requestPending = true;
+            }
+        }
+        
+        // throw new RuntimeException("UNIMPLEMENTED");
         return actions;
     }
 
@@ -329,6 +399,17 @@ public class Raft {
         // TODO: if heartbeat timeout and if I am a leader
         // TODO:    followerinfo.heartbeatExpired = true
         //TODO: return all the actions accumulated
+        var type = msg.getString("type");
+        var name = msg.getString("name");
+        Actions actions = NO_ACTIONS;
+        if (name.equals("ELECTION") && !isLeader()) {
+            actions.add(becomeFollower());
+        }
+        if (!name.equals("ELECTION") && isLeader()) {
+            var fi = followers.get(name);
+            fi.heartbeatTimerExpired = true;
+        } 
+        return actions;
     }
 
     Action checkTerm(JSONObject msg) {
@@ -338,8 +419,14 @@ public class Raft {
         //TODO: if the incoming message's term is > my term
         //TODO:     upgrade my term
         //TODO:     if I am a leader, becomeFollower()
+        if (msgTerm > term) {
+            term = msgTerm;
+            if (isLeader()) {
+                actions.add(becomeFollower());
+            }
+        }
 
-        throw new RuntimeException("UNIMPLEMENTED");
+        // throw new RuntimeException("UNIMPLEMENTED");
 
         return actions;
     }
@@ -361,6 +448,7 @@ public class Raft {
                     var key = msg.getString("key");
                     var value = kv.get(key);
                     action = mkReply(msg, "value", value);
+                    System.err.println("value for key=" + key + " is " + value + " action is=" + action);
                 }
                 case "W" -> {
                     pendingResponses.put(msg.getString("reqid"), msg);
@@ -397,10 +485,10 @@ public class Raft {
             case APPEND_REQ -> actions.add(onAppendReq(msg));
             case APPEND_RESP -> actions.add(onAppendResp(msg));
             case CMD_REQ -> actions.add(onClientCommand(msg));
-            case TIMEOUT -> actions.add(onTimeout(msg));
+            case TIMEOUT -> actions.add(onTimeout(msg));    
             default -> throw new RuntimeException("Unknown msg type " + msgType);
         }
-        if (isLeader()) {
+        if (isLeader() && CMD_REQ.equals(msgType)) {
             actions.add(sendAppends());
         }
         return actions;

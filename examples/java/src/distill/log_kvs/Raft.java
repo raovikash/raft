@@ -4,6 +4,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static distill.log_kvs.Actions.*;
 import static distill.log_kvs.Events.*;
@@ -36,7 +37,6 @@ class FollowerInfo {
         this.follower_id = id;
         this.logLength = logLength;
         this.requestPending = requestPending;
-
     }
 }
 
@@ -116,24 +116,32 @@ public class Raft {
         int msgIndex = (int) msg.get("index");
         var msgEntries = (JSONArray) msg.get("entries");
         Action toSend = null;
+        // System.err.println("current log length=" + log.length() + " msgIndex=" + msgIndex);
         if (msgIndex > log.length()) {
             // Ask leader to back up
-
             // TODO: Return Send action  "success": "false" and "index" set to current log length
-            throw new RuntimeException("UNIMPLEMENTED");
+            toSend = mkReply(msg, "from", myId, "to", msg.get("from"), "type", APPEND_RESP,
+                    "success", "false", "index", log.length(), "num_committed", numCommitted, "entries", msgEntries);
         } else {
             if (msgIndex == log.length()) {
                 // TODO: Append msgEntries to log
+                for (int i = 0; i < msgEntries.length(); i++) {
+                    log.put(msgEntries.get(i));
+                }
                 // TODO: Return Send action  "success": "true" and "index" set to current log length
-                throw new RuntimeException("UNIMPLEMENTED");
-
+                toSend = mkReply(msg, "from", myId, "to", msg.get("from"), "type", APPEND_RESP,
+                    "success", "true", "index", log.length(), "num_committed", numCommitted, "entries", msgEntries);
             } else { // msgIndex < log.length()
                 // TODO: chop tail until msgIndex, then add msgEntries
-                throw new RuntimeException("UNIMPLEMENTED");
+                log = new JSONArray(log.toList().subList(0, msgIndex));
+                for (int i = 0; i < msgEntries.length(); i++) {
+                    log.put(msgEntries.get(i));
+                }
+                toSend = mkReply(msg, "from", myId, "to", msg.get("from"), "type", APPEND_RESP,
+                    "success", "true", "index", log.length(), "num_committed", numCommitted, "entries", msgEntries);
             }
         }
         var actions = new Actions(toSend);
-
         if (!isLeader()) {
             numCommitted = (int) msg.get("num_committed");
             actions.add(onCommit());
@@ -144,7 +152,11 @@ public class Raft {
     Actions onAppendResp(JSONObject msg) {
         assert isLeader();
         int msgIndex = msg.getInt("index");
+        var isSuccess = msg.getString("success");
+        assert "true".equals(isSuccess);
+        // // System.err.println("msgIndex: " + msgIndex + " log.length(): " + log.length());
         assert msgIndex <= log.length() : msgIndex;
+        // System.err.println("passed assert, msgIndex=" + msgIndex + " log.length=" + log.length());
         var fi = followers.get(msg.getString("from"));
         fi.logLength = msgIndex;
         fi.requestPending = false;
@@ -181,8 +193,17 @@ public class Raft {
         assert isLeader();
         //TODO: IMPLEMENT ABOVE.
         //return true if numCommitted was changed.
-        throw new RuntimeException("UNIMPLEMENTED");
-        return retval;
+        var sorted = followers.values().stream()
+                .map(fi -> fi.logLength)
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList());
+        // System.err.println("sorted arr " + sorted);
+        var newNumCommitted = sorted.get(quorumSize - 1);
+        // System.err.println("numCommited= " + numCommitted + " newNumCommitted " + newNumCommitted);
+        // throw new RuntimeException("UNIMPLEMENTED");
+        boolean isCommitChanged = numCommitted != newNumCommitted;
+        numCommitted = newNumCommitted;
+        return isCommitChanged;
     }
 
 
@@ -211,10 +232,16 @@ public class Raft {
     }
     Actions onCommit() {
         var actions = new Actions();
+        // System.err.println("applying commit");
         // TODO: For each index starting from numApplied to numCommitted
         // TODO:      call apply with that log entry
+        // System.err.println("numApplied=" + numApplied + " numCommitted=" + numCommitted);
+        for(int i = numApplied; i < numCommitted; i++) {
+            var entry = log.getJSONObject(i);
+            // System.err.println("i=" + i + " entry=" + entry);
+            actions.add(apply(i, entry));
+        }
         numApplied = numCommitted;
-        throw new RuntimeException("UNIMPLEMENTED");
         return actions;
     }
 
@@ -232,12 +259,22 @@ public class Raft {
 
     Action mkAppendMsg(String to, int index) {
         assert isLeader();
-
+        System.err.println("received to=" + to + " index=" + index);
         // TODO: Create an APPEND_REQ message with
         // TODO: attributes "index", "num_committed", "term"
         // TODO: and "entries". This last attribute should be a slice o the
         // TODO log from index to end of log.
-        throw new RuntimeException("UNIMPLEMENTED");
+        // System.err.println("Send append requests to " + to + ", the request should have all entries starting from index=" + index);
+        var msg = mkMsg(
+                "from", myId,
+                "to", to,   
+                "type", APPEND_REQ,
+                "index", index,
+                "num_committed", numCommitted,
+                "term", term,
+                "entries", new JSONArray(log.toList().subList(index, log.length()))
+        );
+        System.err.println("msg in mkAppendMsg = " + msg);
         return new Send(msg);
     }
 
@@ -251,21 +288,32 @@ public class Raft {
         // TODO:   if fi.logLength < log.length and not fi.requestPending
         // TODO:      create a send action with an appendReq message (use mkAppendMsg)
         // TODO:      set fi.requestPending
-        throw new RuntimeException("UNIMPLEMENTED");
+        for(FollowerInfo fi : followers.values()) {
+            System.err.println("log length=" + log.length() + " fi.logLength=" + fi.logLength + " fi.requestPending=" + fi.requestPending);
+            if (fi.logLength < log.length() && !fi.requestPending) {
+                System.err.println("sending append to " + fi.follower_id + " with log length " + fi.logLength);
+                actions.add(mkAppendMsg(fi.follower_id, fi.logLength));
+                fi.requestPending = true;
+            }
+        }
+        System.err.println("actions in sendAppends = " + actions);
         return actions;
     }
 
     Action checkTerm(JSONObject msg) {
         var actions = NO_ACTIONS;
         var msgTerm = msg.getInt("term");
-
+        // // System.err.println("msg in checkTerm = " + msg);
         //TODO: if the incoming message's term is > my term
         //TODO:     upgrade my term
         //TODO:     if I am a leader, becomeFollower()
-
-        throw new RuntimeException("UNIMPLEMENTED");
-
-        return actions;
+        if (msgTerm > term) {
+            term = msgTerm;
+            if (isLeader()) {
+                actions = becomeFollower();
+            }
+        }
+        return Actions.NO_ACTIONS;
     }
 
     public Actions start() {
@@ -324,9 +372,18 @@ public class Raft {
             default -> throw new RuntimeException("Unknown msg type " + msgType);
         }
         if (isLeader()) {
-            actions.add(sendAppends());
+            log(msgType, String.format("sending appends from leader, msgType=%s, size of actions=%s, actions so far=%s", msgType, actions.size(), actions));
+            Actions appendActions = sendAppends();
+            log(msgType, String.format("received append actions for msgType=%s, append actions size=%s, append actions=%s", msgType, appendActions.size(), appendActions));
+            actions.add(appendActions);
+            log(msgType, String.format("actions for msgType=%s, size=%s, are=%s", msgType, actions.size(), actions));
         }
         return actions;
     }
 
+    void log(String msgType, String log) {
+        if (msgType.equals(APPEND_RESP)) {
+            System.err.println(String.format("log for msgType=%s, is=%s", msgType, log));
+        }
+    }
 }
