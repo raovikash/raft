@@ -117,6 +117,8 @@ public class Raft {
         status = Status.FOLLOWER;
         followers = null;
         //TODO: reset votedFor and numVotes
+        votedFor = null;
+        numVotes = 0;
         return actions; // There will be actions in a later exercise.
     }
 
@@ -126,7 +128,18 @@ public class Raft {
         // TODO: SendAction voteReq message (see mkVoteReqMsg for boilerplate) to all siblings
         // TODO: remember to vote for oneself.
         // TODO: reset election timer
-        ???
+
+        Actions actions = cancelAllTimers();
+        if (!isCandidate()) {
+            term++;
+            status = Status.CANDIDATE;
+        }
+        for (var fol: siblings) {
+            actions.add(mkVoteReqMsg(fol, logTermBeforeIndex(log.length())));
+        }
+        votedFor = myId;
+        numVotes = 1;
+        actions.add(new SetAlarm(ELECTION));
         return actions;
     }
 
@@ -145,7 +158,12 @@ public class Raft {
         var msg = mkMsg(
                 // TODO: make message with fields
                 //      from, to, type, term, log_length, last_log_term
-                ???
+                "from", myId,
+                "to", to,
+                "type", VOTE_REQ,
+                "term", term,
+                "log_length", log.length(),
+                "last_log_term", lastLogTerm
         );
         return new Send(msg);
     }
@@ -310,7 +328,15 @@ public class Raft {
         // TODO: In all other cases, "vote_granted" == false
         // TODO: reply using mkReply(msg)
         // TODO: If vote is granted, set votedFor.
-        ???
+        if (votedFor == null) {
+            int lastLogTerm = msg.getInt("last_log_term");
+            int logLength = msg.getInt("log_length");
+            if (lastLogTerm > logTermBeforeIndex(log.length()) ||
+                    (lastLogTerm == logTermBeforeIndex(log.length()) && logLength >= log.length())) {
+                voteGranted = true;
+                votedFor = msg.getString("from");
+            }
+        }
         return mkReply(msg, "vote_granted", voteGranted);
     }
 
@@ -319,7 +345,10 @@ public class Raft {
         if (isCandidate()) {
             //     if ++numVotes meets quorum sizes, become leader
             //     return appropriate actions from becoming leader
-            ?????
+            ++numVotes;
+            if (numVotes >= quorumSize) {
+                actions = becomeLeader();
+            }
         }
         return actions;
     }

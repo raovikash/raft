@@ -168,8 +168,8 @@ public class Raft {
     int logTermBeforeIndex(int index) {
         // TODO: return the term at log entry index-1
         // TODO: if there is no entry at that index return 0.
-        if (log.length() == 0) {
-            return 1;
+        if (log.length() == 0 || index <= 0) {
+            return 0;
         }
         return log.getJSONObject(index - 1).getInt("term");
         // throw new RuntimeException("UNIMPLEMENTED");

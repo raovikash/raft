@@ -70,6 +70,10 @@
                 <version>3.2.5</version>
                 <configuration>
                     <testSourceDirectory>test</testSourceDirectory>
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                    <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                 </configuration>
             </plugin>
             <plugin>
@@ -84,4 +88,3 @@
         </plugins>
     </build>
 </project>
-

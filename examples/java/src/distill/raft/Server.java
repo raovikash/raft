@@ -39,7 +39,7 @@ public class Server {
                 if (name.equals(ELECTION)) {
                     // TODO: durationSec is some random number between
                     //    ELECTION_DURATION_SEC and 2 * ELECTION_DURATION_SEC
-                    durationSec = ???
+                    durationSec = ELECTION_DURATION_SEC + Math.random() * ELECTION_DURATION_SEC;
                 } else {
                     durationSec = HEARTBEAT_DURATION_SEC;
                 }
